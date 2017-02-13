@@ -93,7 +93,11 @@ class Batch < Chef::Knife
         node_name = server.host
       else
         nodes.each do |n|
-          node_name = n if format_for_display(n)[config[:attribute]] == server.host
+          if n.kind_of?(String)
+            node_name = n
+          else
+            node_name = n if format_for_display(n)[config[:attribute]] == server.host
+          end
         end
       end
       ui.warn "Failed to connect to #{node_name} -- #{$!.class.name}: #{$!.message}"
@@ -105,26 +109,26 @@ class Batch < Chef::Knife
 
   def get_nodes
     list = case config[:manual]
-           when true
-             @name_args[0].split(" ")
-           when false
-             r = Array.new
-             q = Chef::Search::Query.new
-             @action_nodes = q.search(:node, @name_args[0])[0]
-             @action_nodes.each do |item|
-               next if item.nil?
-               if !config[:override_attribute] && item[:cloud] and item[:cloud][:public_hostname]
-                 i = format_for_display(item)[config[:attribute]]
-               elsif config[:override_attribute]
-                 i = extract_nested_value(item, config[:override_attribute])
-               else
-                 i = extract_nested_value(item, config[:attribute])
-               end
-               next if i.nil?
-               r.push(i)
-             end
-             r
-           end
+    when true
+      @name_args[0].split(" ")
+    when false
+      r = Array.new
+      q = Chef::Search::Query.new
+      @action_nodes = q.search(:node, @name_args[0])[0]
+      @action_nodes.each do |item|
+        next if item.nil?
+        if !config[:override_attribute] && item['cloud_v2'] and item['cloud_v2']['public_hostname']
+          i = format_with_cloud_v2(item, config[:attribute])
+        elsif config[:override_attribute]
+          i = extract_nested_value(item, config[:override_attribute])
+        else
+          i = extract_nested_value(item, config[:attribute])
+        end
+        next if i.nil?
+        r.push(i)
+      end
+      r
+    end
     (ui.fatal("No nodes returned from search!"); exit 10) if list.length == 0
 
     list.each_slice(config[:batch_size].to_i).to_a
@@ -192,6 +196,20 @@ class Batch < Chef::Knife
 
   def extract_nested_value(data_structure, path_spec)
     ui.presenter.extract_nested_value(data_structure, path_spec)
+  end
+
+  def format_with_cloud_v2(node, attribute)
+    d = format_for_display node
+    case
+    when d.key?(item['fqdn'])
+      d[item['fqdn']][attribute]
+    when d.key?(item['name'])
+      d[item['name']][attribute]
+    when d.key?(item['machinename'])
+      d[item['machinename']][attribute]
+    else
+      d[item['hostname']][attribute]
+    end
   end
 
   def run
