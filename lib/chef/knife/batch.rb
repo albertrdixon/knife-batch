@@ -201,14 +201,14 @@ class Batch < Chef::Knife
   def format_with_cloud_v2(node, attribute)
     d = format_for_display node
     case
-    when d.key?(item['fqdn'])
-      d[item['fqdn']][attribute]
-    when d.key?(item['name'])
-      d[item['name']][attribute]
-    when d.key?(item['machinename'])
-      d[item['machinename']][attribute]
+    when d.key?(node['fqdn'])
+      d[node['fqdn']][attribute]
+    when d.key?(node['name'])
+      d[node['name']][attribute]
+    when d.key?(node['machinename'])
+      d[node['machinename']][attribute]
     else
-      d[item['hostname']][attribute]
+      d[node['hostname']][attribute]
     end
   end
 
